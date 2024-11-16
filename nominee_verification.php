@@ -1,5 +1,5 @@
 <?php
-include 'session_handler.php';
+include 'ajax/session_handler.php';
 // Database connection
 try {
     $pdo = new PDO("mysql:host=localhost;dbname=votadhikar", "root", ""); // Replace with your credentials

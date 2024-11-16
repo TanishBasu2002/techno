@@ -1,7 +1,5 @@
 <?php
-include 'session_handler.php';
-// Start session
-session_start();
+include 'ajax/session_handler.php';
 
 // Check if user is not logged in
 if (!isset($_SESSION['user_id'])) {
@@ -11,17 +9,17 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Database connection
-$db_host = 'localhost';
-$db_user = 'root';
-$db_pass = '';
-$db_name = 'votadhikar';
+$servername = "localhost";
+$username = "root"; // Replace with your DB username
+$password = ""; // Replace with your DB password
+$dbname = "votadhikar";
 
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+$conn = new mysqli($servername, $username, $password, $dbname);
 
+// Check the connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
-
 // Get user details
 $user_id = $_SESSION['user_id'];
 $stmt = $conn->prepare("SELECT first_name, last_name, email FROM users WHERE id = ?");

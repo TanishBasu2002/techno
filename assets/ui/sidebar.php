@@ -2,7 +2,7 @@
 ?>
 <div class="sidebar">
         <div class="logo">
-            <a href="dashboard.php" style="text-decoration: none; color: inherit;">
+            <a href="user_dashboard.php" style="text-decoration: none; color: inherit;">
                 <h2>Votadhikar</h2>
             </a>
         </div>
@@ -12,7 +12,6 @@
                 <div class="nav-link view-election">View election
                     <ul class="dropdown">
                         <li><a href="active_election.php">Active Election</a></li>
-                        <li><a href="election_faqs.php">Election FAQS</a></li>
                     </ul>
                 </div>
             </li>
