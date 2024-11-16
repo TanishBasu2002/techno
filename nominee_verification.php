@@ -78,6 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         die("Error: " . $e->getMessage());
     }
 }
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: login.php");
+    exit();
+}
 ?>
 
 <!DOCTYPE html>

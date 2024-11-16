@@ -15,6 +15,12 @@ if ($conn->connect_error) {
 // Fetch elections from the database
 $sql = "SELECT title, start_date, end_date, status FROM elections WHERE status IN ('ongoing', 'upcoming') ORDER BY start_date ASC";
 $result = $conn->query($sql);
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: login.php");
+    exit();
+}
 ?>
 
 <!DOCTYPE html>

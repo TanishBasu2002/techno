@@ -122,7 +122,12 @@ if (isset($_POST['submit_vote'])) {
         }
     }
 }
-
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: login.php");
+    exit();
+}
 $conn->close();
 ?>
 

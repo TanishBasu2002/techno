@@ -58,6 +58,7 @@ $captcha = generateCaptcha();
 if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
     echo "<p style='color: red;'>You were logged out due to inactivity. Please log in again.</p>";
 }
+//Logout
 if (isset($_GET['logout']) && $_GET['logout'] == 1) {
     echo "<p style='color: green;'>You have successfully logged out.</p>";
 }
