@@ -17,7 +17,6 @@
             </li>
             <li><a href="cast_vote.php" class="nav-link">Cast vote</a></li>
             <li><a href="exit_poll.php" class="nav-link">Exit poll</a></li>
-            <li><a href="support_help.php" class="nav-link">Support/help</a></li>
-            <li><a href="?logout=1" class="nav-link">Logout</a></li>
+            <li><a href="logout.php" class="nav-link">Logout</a></li>
         </ul>
         
