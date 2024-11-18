@@ -81,15 +81,15 @@ if (isset($_POST['submit_vote'])) {
     
     // Validate all inputs are present
     if (empty($election_id) || empty($candidate_id) || empty($constituency_id)) {
-        $error_message = "All fields are required.";
+        $error_message = "<script>All fields are required.</script>";
     }
     // Check if user has already voted
     else if (hasUserVoted($conn, $election_id, $user_id)) {
-        $error_message = "You have already voted in this election.";
+        $error_message = "<script>You have already voted in this election.</script>";
     }
     // Verify user's constituency
     else if (!verifyUserConstituency($conn, $user_id, $constituency_id)) {
-        $error_message = "Invalid constituency selected.";
+        $error_message = "<script>Invalid constituency selected.</script>";
     }
     else {
         // Begin transaction

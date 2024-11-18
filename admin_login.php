@@ -63,19 +63,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login</title>
-    <link rel="stylesheet" href="assets/css/popup.css">
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
+<div class="main-container">
+<div class="login-container">
     <h1>Admin Login</h1>
     <?php if (isset($error)) echo "<p style='color:red;'>$error</p>"; ?>
     <form method="POST" action="">
+    <div class="input-box">
         <label for="aadhaar_number">Aadhaar Number:</label>
         <input type="text" name="aadhaar_number" id="aadhaar_number" required><br>
-
+    </div>
+    <div class="input-box">
         <label for="password">Password:</label>
         <input type="password" name="password" id="password" required><br>
-
-        <button type="submit">Login</button>
+    </div>
+        <button type="submit" class="login-btn">Login</button>
     </form>
 </body>
 </html>

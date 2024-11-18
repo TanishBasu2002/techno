@@ -56,11 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Generate new captcha
 $captcha = generateCaptcha();
 if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
-    echo "<p style='color: red;'>You were logged out due to inactivity. Please log in again.</p>";
+    echo "<script>alert('You were logged out due to inactivity. Please log in again.');</script>";
 }
-//Logout
 if (isset($_GET['logout']) && $_GET['logout'] == 1) {
-    echo "<p style='color: green;'>You have successfully logged out.</p>";
+    echo "<script>alert('You have successfully logged out.');</script>";
 }
 ?>
 
@@ -115,7 +114,6 @@ if (isset($_GET['logout']) && $_GET['logout'] == 1) {
                 <a href="registration.php">New to votadhikar? Sign Up</a> |
             </div>
         </div>
-        <img src="assets/images/Untitled-removebg.png" alt="Voting illustration" class="side-image">
     </div>
     
     <?php include 'assets/ui/footer.php'; ?>

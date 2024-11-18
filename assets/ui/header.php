@@ -22,6 +22,7 @@
             </ul>
             <?php if (!isset($_SESSION['user_id'])): ?>
                 <a href="login.php" class="login-btn">Login</a>
+                <a href="admin_login.php" class="login-btn">Admin Login</a>
             <?php else: ?>
                 <a href="logout.php" class="login-btn">Logout</a>
             <?php endif; ?>
