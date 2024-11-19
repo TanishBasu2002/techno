@@ -15,7 +15,7 @@
                     </ul>
                 </div>
             </li>
-            <li><a href="cast_vote.php" class="nav-link">Cast vote</a></li>
+            <li><a href="vote.php" class="nav-link">Cast vote</a></li>
             <li><a href="exit_poll.php" class="nav-link">Exit poll</a></li>
             <li><a href="logout.php" class="nav-link">Logout</a></li>
         </ul>

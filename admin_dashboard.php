@@ -144,6 +144,7 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/popup.css">
 </head>
 <body>
     <!-- Popup Message Container -->
@@ -292,7 +293,7 @@ try {
                                 <!-- Handle Base64 encoded images -->
                                 <div class="document-item">
                                     <h5><?= htmlspecialchars(ucwords(str_replace('_', ' ', $field))) ?></h5>
-                                    <img src="<?= htmlspecialchars($value) ?>" 
+                                    <img src='<?= htmlspecialchars($value) ?>'
                                          alt="<?= htmlspecialchars($field) ?>"
                                          class="document-image"
                                          onclick="openImageModal(this.src)">

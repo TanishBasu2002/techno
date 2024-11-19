@@ -1,5 +1,5 @@
 <?php
-session_start();
+include 'ajax/session_handler.php';
 require_once 'config/database.php';
 require_once 'assets/ui/functions.php';
 

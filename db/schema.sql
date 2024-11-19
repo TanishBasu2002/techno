@@ -590,3 +590,9 @@ BEGIN
 END//
 
 DELIMITER ;
+
+ALTER TABLE votes 
+ADD COLUMN election_form_id INT,
+ADD COLUMN constituency_id INT,
+ADD FOREIGN KEY (election_form_id) REFERENCES election_forms(id) ON DELETE SET NULL,
+ADD FOREIGN KEY (constituency_id) REFERENCES constituencies(id) ON DELETE SET NULL;
