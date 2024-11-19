@@ -160,7 +160,7 @@ INSERT INTO users (
 ) 
 VALUES (
     '123456789012', -- Example Aadhaar
-    'hashed_password', -- Replace with a hashed password
+    '$2y$10$c20i/yJHgWBx3erDMFNK4uXQ8Bj71R3GcynHNruocIVCeSa6pEkGO', -- Replace with a hashed password
     'Admin',
     'User',
     '1980-01-01',
@@ -216,3 +216,377 @@ BEGIN
 END//
 DELIMITER ;
 
+-- Add a new column to track election creation
+-- Step 1: Add the column allowing NULL temporarily
+ALTER TABLE elections 
+ADD COLUMN created_by INT NULL AFTER description;
+
+-- Step 2: Populate the column with a valid user ID
+-- Assuming the admin user ID is 1
+UPDATE elections 
+SET created_by = 1; -- Replace '1' with an actual admin user ID from the `users` table
+
+-- Step 3: Alter the column to NOT NULL and add the foreign key
+ALTER TABLE elections 
+MODIFY COLUMN created_by INT NOT NULL,
+ADD CONSTRAINT fk_elections_created_by 
+FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
+
+
+-- Add form submission tracking table
+CREATE TABLE election_forms (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    election_id INT NOT NULL,
+    user_id INT NOT NULL,
+    submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('draft', 'submitted', 'approved', 'rejected') DEFAULT 'draft',
+    form_data JSON NOT NULL,
+    reviewed_by INT,
+    review_date TIMESTAMP NULL,
+    review_comments TEXT,
+    FOREIGN KEY (election_id) REFERENCES elections(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_submission (election_id, user_id)
+);
+
+-- Drop existing procedures
+DROP PROCEDURE IF EXISTS UpdateElectionStatus;
+DROP PROCEDURE IF EXISTS UpdateAccountStatus;
+
+-- Updated procedure for election management
+DELIMITER //
+
+CREATE PROCEDURE CreateElection(
+    IN admin_id INT,
+    IN election_title VARCHAR(100),
+    IN election_description TEXT,
+    IN election_start DATETIME,
+    IN election_end DATETIME
+)
+BEGIN
+    DECLARE admin_role INT;
+    
+    -- Check if user is admin
+    SELECT role_id INTO admin_role FROM users WHERE id = admin_id;
+    
+    IF admin_role != 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only administrators can create elections';
+    END IF;
+    
+    -- Create the election
+    INSERT INTO elections (
+        title,
+        description,
+        created_by,
+        start_date,
+        end_date,
+        status
+    ) VALUES (
+        election_title,
+        election_description,
+        admin_id,
+        election_start,
+        election_end,
+        'upcoming'
+    );
+    
+    -- Log the action
+    INSERT INTO admin_logs (
+        admin_id,
+        action_type,
+        target_id,
+        action_details
+    ) VALUES (
+        admin_id,
+        'update_election_status',
+        LAST_INSERT_ID(),
+        'Created new election'
+    );
+END//
+
+CREATE PROCEDURE UpdateElectionStatus(
+    IN admin_id INT,
+    IN election_id INT,
+    IN new_status ENUM('upcoming', 'ongoing', 'completed')
+)
+BEGIN
+    DECLARE admin_role INT;
+    DECLARE current_status VARCHAR(20);
+    
+    -- Check if user is admin
+    SELECT role_id INTO admin_role FROM users WHERE id = admin_id;
+    SELECT status INTO current_status FROM elections WHERE id = election_id;
+    
+    IF admin_role != 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only administrators can update election status';
+    END IF;
+    
+    -- Validate status transition
+    IF current_status = 'completed' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot modify completed elections';
+    END IF;
+    
+    -- Update the status
+    UPDATE elections 
+    SET 
+        status = new_status,
+        updated_by = admin_id
+    WHERE id = election_id;
+    
+    -- Log the action
+    INSERT INTO admin_logs (
+        admin_id,
+        action_type,
+        target_id,
+        action_details
+    ) VALUES (
+        admin_id,
+        'update_election_status',
+        election_id,
+        CONCAT('Changed status from ', current_status, ' to ', new_status)
+    );
+END//
+
+CREATE PROCEDURE SubmitElectionForm(
+    IN user_id INT,
+    IN election_id INT,
+    IN form_data JSON
+)
+BEGIN
+    DECLARE election_status VARCHAR(20);
+    
+    -- Check if election is ongoing
+    SELECT status INTO election_status FROM elections WHERE id = election_id;
+    
+    IF election_status != 'ongoing' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Forms can only be submitted during ongoing elections';
+    END IF;
+    
+    -- Check if user already submitted
+    IF EXISTS (SELECT 1 FROM election_forms 
+               WHERE user_id = user_id 
+               AND election_id = election_id 
+               AND status != 'draft') THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'You have already submitted a form for this election';
+    END IF;
+    
+    -- Insert or update the form
+    INSERT INTO election_forms (
+        election_id,
+        user_id,
+        form_data,
+        status
+    ) VALUES (
+        election_id,
+        user_id,
+        form_data,
+        'submitted'
+    )
+    ON DUPLICATE KEY UPDATE
+        form_data = VALUES(form_data),
+        status = 'submitted',
+        submission_date = CURRENT_TIMESTAMP;
+END//
+
+CREATE PROCEDURE ReviewElectionForm(
+    IN admin_id INT,
+    IN form_id INT,
+    IN review_status ENUM('approved', 'rejected'),
+    IN comments TEXT
+)
+BEGIN
+    DECLARE admin_role INT;
+    
+    -- Check if user is admin
+    SELECT role_id INTO admin_role FROM users WHERE id = admin_id;
+    
+    IF admin_role != 1 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Only administrators can review forms';
+    END IF;
+    
+    -- Update the form status
+    UPDATE election_forms
+    SET 
+        status = review_status,
+        reviewed_by = admin_id,
+        review_date = CURRENT_TIMESTAMP,
+        review_comments = comments
+    WHERE id = form_id;
+END//
+
+CREATE PROCEDURE UpdateAccountStatus(
+    IN admin_id INT,
+    IN target_user_id INT,
+    IN new_status ENUM('active', 'inactive', 'suspended')
+)
+BEGIN
+    DECLARE admin_role INT;
+    
+    -- Check if user is admin
+    SELECT role_id INTO admin_role FROM users WHERE id = admin_id;
+    
+    IF admin_role != 1 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Only administrators can update account status';
+    END IF;
+    
+    -- Update the user status
+    UPDATE users 
+    SET 
+        account_status = new_status,
+        updated_by = admin_id
+    WHERE id = target_user_id;
+    
+    -- Log the action
+    INSERT INTO admin_logs (
+        admin_id,
+        action_type,
+        target_id,
+        action_details
+    ) VALUES (
+        admin_id,
+        'update_user_status',
+        target_user_id,
+        CONCAT('Changed account status to ', new_status)
+    );
+END//
+
+DELIMITER ;
+
+-- Add triggers for additional security
+DELIMITER //
+
+CREATE TRIGGER before_election_update
+BEFORE UPDATE ON elections
+FOR EACH ROW
+BEGIN
+    DECLARE updater_role INT;
+    
+    SELECT role_id INTO updater_role 
+    FROM users 
+    WHERE id = NEW.updated_by;
+    
+    IF updater_role != 1 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Only administrators can modify elections';
+    END IF;
+END//
+
+CREATE TRIGGER before_election_insert
+BEFORE INSERT ON elections
+FOR EACH ROW
+BEGIN
+    DECLARE creator_role INT;
+    
+    SELECT role_id INTO creator_role 
+    FROM users 
+    WHERE id = NEW.created_by;
+    
+    IF creator_role != 1 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Only administrators can create elections';
+    END IF;
+END//
+
+DELIMITER ;
+
+-- Create views for easy access to election data
+CREATE VIEW active_elections AS
+SELECT 
+    e.*,
+    u.first_name as created_by_name,
+    u.email as created_by_email
+FROM elections e
+JOIN users u ON e.created_by = u.id
+WHERE e.status = 'ongoing';
+
+CREATE VIEW election_form_summary AS
+SELECT 
+    ef.*,
+    e.title as election_title,
+    u.first_name as user_first_name,
+    u.last_name as user_last_name,
+    a.first_name as reviewer_first_name,
+    a.last_name as reviewer_last_name
+FROM election_forms ef
+JOIN elections e ON ef.election_id = e.id
+JOIN users u ON ef.user_id = u.id
+LEFT JOIN users a ON ef.reviewed_by = a.id;
+
+CREATE TABLE constituencies (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    state VARCHAR(50) NOT NULL,
+    district VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Add foreign key to users table
+ALTER TABLE users 
+ADD CONSTRAINT fk_user_constituency
+FOREIGN KEY (constituency_id) REFERENCES constituencies(id);
+
+-- Modify election_forms table to reference constituencies table
+ALTER TABLE election_forms
+ADD COLUMN constituency_id INT,
+ADD CONSTRAINT fk_election_form_constituency
+FOREIGN KEY (constituency_id) REFERENCES constituencies(id);
+
+DELIMITER //
+
+DROP PROCEDURE IF EXISTS SubmitElectionForm//
+
+CREATE PROCEDURE SubmitElectionForm(
+    IN user_id INT,
+    IN election_id INT,
+    IN form_data JSON,
+    IN constituency_id INT
+)
+BEGIN
+    DECLARE election_status VARCHAR(20);
+    
+    -- Check if election is ongoing
+    SELECT status INTO election_status FROM elections WHERE id = election_id;
+    
+    IF election_status != 'ongoing' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Forms can only be submitted during ongoing elections';
+    END IF;
+    
+    -- Check if user already submitted
+    IF EXISTS (SELECT 1 FROM election_forms 
+               WHERE user_id = user_id 
+               AND election_id = election_id 
+               AND status != 'draft') THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'You have already submitted a form for this election';
+    END IF;
+    
+    -- Insert or update the form
+    INSERT INTO election_forms (
+        election_id,
+        user_id,
+        constituency_id,
+        form_data,
+        status
+    ) VALUES (
+        election_id,
+        user_id,
+        constituency_id,
+        form_data,
+        'submitted'
+    )
+    ON DUPLICATE KEY UPDATE
+        form_data = VALUES(form_data),
+        constituency_id = VALUES(constituency_id),
+        status = 'submitted',
+        submission_date = CURRENT_TIMESTAMP;
+END//
+
+DELIMITER ;

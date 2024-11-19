@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':voter_id' => $voter_id
                 ]);
 
-                $success = "Registration successful! Please verify your email to activate your account.";
+                $success = "Registration successful! Please wait for varification from admin.";
             }
         } catch (PDOException $e) {
             $error = "An error occurred. Please try again later.";
@@ -170,9 +170,6 @@ if (isset($_GET['logout'])) {
             </form>
         </div>
     </div>
-
-    <?php include 'assets/ui/footer.php'; ?>
-    
     <script>
     function refreshCaptcha() {
         fetch('ajax/refresh_captcha.php')

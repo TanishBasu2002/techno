@@ -20,7 +20,6 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Function to check if user has already voted in this election
 function hasUserVoted($conn, $election_id, $user_id) {
     $sql = "SELECT id FROM votes WHERE election_id = ? AND voter_id = ?";
     $stmt = $conn->prepare($sql);
@@ -32,9 +31,12 @@ function hasUserVoted($conn, $election_id, $user_id) {
     return $hasVoted;
 }
 
-// Function to verify user constituency
+// Updated function to verify user constituency
 function verifyUserConstituency($conn, $user_id, $constituency_id) {
-    $sql = "SELECT constituency_id FROM users WHERE id = ? AND constituency_id = ?";
+    $sql = "SELECT u.constituency_id 
+            FROM users u
+            JOIN constituencies c ON u.constituency_id = c.id
+            WHERE u.id = ? AND u.constituency_id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ii", $user_id, $constituency_id);
     $stmt->execute();
@@ -52,6 +54,26 @@ if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $elections[] = $row;
     }
+}
+
+// Updated query to fetch constituencies from the constituencies table
+$constituencies = [];
+if (isset($_POST['election_id'])) {
+    $election_id = $_POST['election_id'];
+    $sql = "SELECT DISTINCT c.id, c.name, c.state, c.district
+            FROM constituencies c
+            JOIN election_forms ef ON c.id = ef.constituency_id
+            WHERE ef.election_id = ? 
+            AND ef.status = 'approved'
+            ORDER BY c.state, c.district, c.name";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $election_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $constituencies[] = $row;
+    }
+    $stmt->close();
 }
 
 // Fetch candidates based on selected election
@@ -81,15 +103,15 @@ if (isset($_POST['submit_vote'])) {
     
     // Validate all inputs are present
     if (empty($election_id) || empty($candidate_id) || empty($constituency_id)) {
-        $error_message = "<script>All fields are required.</script>";
+        $error_message = "All fields are required.";
     }
     // Check if user has already voted
     else if (hasUserVoted($conn, $election_id, $user_id)) {
-        $error_message = "<script>You have already voted in this election.</script>";
+        $error_message = "You have already voted in this election.";
     }
     // Verify user's constituency
     else if (!verifyUserConstituency($conn, $user_id, $constituency_id)) {
-        $error_message = "<script>Invalid constituency selected.</script>";
+        $error_message = "You are not registered to vote in this constituency.";
     }
     else {
         // Begin transaction
@@ -97,7 +119,8 @@ if (isset($_POST['submit_vote'])) {
         
         try {
             // Insert vote
-            $sql = "INSERT INTO votes (election_id, voter_id, candidate_id, voting_station_id) VALUES (?, ?, ?, ?)";
+            $sql = "INSERT INTO votes (election_id, voter_id, candidate_id, voting_station_id) 
+                   VALUES (?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("iiii", $election_id, $user_id, $candidate_id, $constituency_id);
             
@@ -105,7 +128,7 @@ if (isset($_POST['submit_vote'])) {
                 $conn->commit();
                 $success_message = "Thank you! Your vote has been successfully cast.";
                 
-                // Log the successful vote (without storing the actual vote details)
+                // Log the successful vote
                 $log_sql = "INSERT INTO auth_logs (user_id, login_status, ip_address) VALUES (?, 'success', ?)";
                 $log_stmt = $conn->prepare($log_sql);
                 $ip = $_SERVER['REMOTE_ADDR'];
@@ -122,13 +145,6 @@ if (isset($_POST['submit_vote'])) {
         }
     }
 }
-// Handle logout
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: login.php");
-    exit();
-}
-$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -140,6 +156,7 @@ $conn->close();
     <link rel="stylesheet" href="assets/css/user-dashboard.css">
 </head>
 <body>
+<?php include 'assets/ui/sidebar.php'; ?>
     <div class="container">
         <h2>Cast Vote</h2>
 
@@ -199,14 +216,19 @@ $conn->close();
                 </div>
             <?php endif; ?>
 
-            <!-- Constituency Selection -->
+            <!-- Dynamic Constituency Selection -->
             <div class="form-group">
-                <label for="constituency">Select your Constituency:</label>
-                <select id="constituency" name="constituency" required>
-                    <option value="" disabled selected>Select Constituency</option>
-                    <option value="120">120 - Chunachura</option>
-                    <option value="121">121 - Lakhpur</option>
-                </select>
+            <label for="constituency">Select your Constituency:</label>
+    <select id="constituency" name="constituency" required>
+        <option value="" disabled selected>Select Constituency</option>
+        <?php foreach ($constituencies as $constituency): ?>
+            <option value="<?php echo htmlspecialchars($constituency['id']); ?>">
+                <?php echo htmlspecialchars($constituency['state'] . ' - ' . 
+                                          $constituency['district'] . ' - ' . 
+                                          $constituency['name']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
             </div>
 
             <!-- Action Buttons -->

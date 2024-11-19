@@ -7,7 +7,7 @@
             </a>
         </div>
         <ul class="menu">
-            <li><a href="nominee_verification.php" class="nav-link">Verify account</a></li>
+            <li><a href="nominee_verification.php" class="nav-link">Nomination Form</a></li>
             <li>
                 <div class="nav-link view-election">View election
                     <ul class="dropdown">

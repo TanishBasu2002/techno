@@ -113,11 +113,9 @@ if (isset($_GET['logout']) && $_GET['logout'] == 1) {
             <div class="extra-links">
                 <a href="registration.php">New to votadhikar? Sign Up</a> |
             </div>
+            
         </div>
     </div>
-    
-    <?php include 'assets/ui/footer.php'; ?>
-    
     <script>
     function refreshCaptcha() {
         fetch('ajax/refresh_captcha.php')
